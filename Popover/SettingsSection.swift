@@ -12,9 +12,23 @@ struct SettingsSection: View {
     @AppStorage(SettingsKey.yellowRedThreshold) private var yellowRedCelsius: Double
         = Settings.default.yellowRedThreshold
     @AppStorage(SettingsKey.unit) private var unitRaw: String = Settings.default.unit.rawValue
+    @AppStorage(SettingsKey.refreshInterval) private var refreshIntervalRaw: Double
+        = Settings.default.refreshInterval.rawValue
 
     private var unit: Settings.Unit {
         Settings.Unit(rawValue: unitRaw) ?? .celsius
+    }
+
+    /// Bridges the `Double`-backed `@AppStorage` to the
+    /// `Settings.RefreshInterval` enum the picker binds to.
+    private var refreshInterval: Binding<Settings.RefreshInterval> {
+        Binding(
+            get: {
+                Settings.RefreshInterval(rawValue: refreshIntervalRaw)
+                    ?? Settings.default.refreshInterval
+            },
+            set: { refreshIntervalRaw = $0.rawValue }
+        )
     }
 
     /// Range bounds for the slider. We let the user set the threshold
@@ -62,6 +76,21 @@ struct SettingsSection: View {
                 Picker("", selection: $unitRaw) {
                     ForEach(Settings.Unit.allCases) { u in
                         Text(u.displayName).tag(u.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 160)
+            }
+
+            HStack {
+                Text("Refresh")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Picker("", selection: refreshInterval) {
+                    ForEach(Settings.RefreshInterval.allCases) { i in
+                        Text(i.shortLabel).tag(i)
                     }
                 }
                 .pickerStyle(.segmented)
