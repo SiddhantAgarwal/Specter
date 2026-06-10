@@ -47,7 +47,7 @@ struct PopoverView: View {
         // view's reported size matches the popover's frame exactly.
         // This prevents `NSPopover` from re-framing itself based on
         // the SwiftUI view's intrinsic size mid-show.
-        .frame(width: 280, height: 440)
+        .frame(width: 280, height: 470)
     }
 
     // MARK: - Section helpers

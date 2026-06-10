@@ -83,11 +83,12 @@ final class PopoverController: NSObject, NSPopoverDelegate {
     private let viewModel: PopoverViewModel
 
     /// Pinned popover dimensions. Width 280 = the design width set on
-    /// the SwiftUI view's `.frame(width: 280)`. Height 440 = enough for
-    /// the full layout (CPU + chart + FAN + divider + settings + quit)
-    /// with comfortable margins, so neither the top nor the bottom row
-    /// is clipped. If you add a new section to `PopoverView`, bump this.
-    private static let contentSize = NSSize(width: 280, height: 440)
+    /// the SwiftUI view's `.frame(width: 280)`. Height 470 = enough for
+    /// the full layout (CPU + chart + FAN + divider + settings + refresh
+    /// row + quit) with comfortable margins, so neither the top nor the
+    /// bottom row is clipped. If you add a new section to `PopoverView`,
+    /// bump this.
+    private static let contentSize = NSSize(width: 280, height: 470)
 
     /// True between `popoverWillShow` and `popoverDidClose`. Used to
     /// gate per-tick re-renders so the SwiftUI view isn't asked to

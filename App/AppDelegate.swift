@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 /// Top-level coordinator. Builds the telemetry stack, the menu bar
 /// controller, and the popover controller; wires them together; starts
@@ -10,6 +11,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController?
     private var popover: PopoverController?
     private var settings: SettingsStore?
+
+    /// Combine subscriptions kept alive for the lifetime of the app.
+    /// Currently used to push the user's `refreshInterval` setting into
+    /// the running `TelemetryService` so the change takes effect without
+    /// a restart.
+    private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Defer setup to the next runloop tick. The status bar is still
@@ -39,11 +46,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = SettingsStore()
         self.settings = settings
 
-        let service = TelemetryService(interval: 1.0)
+        let service = TelemetryService(interval: settings.settings.refreshInterval.rawValue)
         // 5 minutes of history at 1 Hz = 300 samples per provider.
         service.add(cpu, storeCapacity: PopoverViewModel.historyWindow)
         service.add(fan, storeCapacity: PopoverViewModel.historyWindow)
         self.service = service
+
+        // Push live changes to the user's `refreshInterval` setting into
+        // the running timer. `removeDuplicates()` ensures we only re-arm
+        // the timer when the interval itself changes — threshold or unit
+        // changes leave the timer alone.
+        settings.$settings
+            .map(\.refreshInterval)
+            .removeDuplicates()
+            .sink { [weak service] interval in
+                service?.setInterval(interval.rawValue)
+            }
+            .store(in: &cancellables)
 
         // Popover view model needs references to the providers, the
         // service, and the settings so it can read sample stores on

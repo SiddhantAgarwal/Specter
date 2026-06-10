@@ -20,8 +20,9 @@ final class TelemetryService {
     /// Called on the main queue after every successful sample pass.
     var onUpdate: ((TelemetryService) -> Void)?
 
-    /// Polling interval in seconds. Default 1 Hz.
-    private let interval: TimeInterval
+    /// Polling interval in seconds. Default 1 Hz. Mutable so the user can
+    /// change it at runtime via `setInterval(_:)`.
+    private var interval: TimeInterval
 
     init(interval: TimeInterval = 1.0) {
         self.interval = interval
@@ -63,6 +64,22 @@ final class TelemetryService {
     func stop() {
         timer?.cancel()
         timer = nil
+    }
+
+    /// Update the polling interval. If the service is already running,
+    /// re-arms the existing `DispatchSourceTimer` in place — the next
+    /// tick fires `new` seconds from now (we don't fire immediately on
+    /// a setting change, since the user is interacting with a picker,
+    /// not asking for a fresh sample). If `start()` hasn't been called
+    /// yet, just remembers the value for when it does.
+    func setInterval(_ new: TimeInterval) {
+        interval = new
+        guard let timer else { return }
+        timer.schedule(
+            deadline: .now() + new,
+            repeating: new,
+            leeway: .milliseconds(50)
+        )
     }
 
     private func tick() async {
