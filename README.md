@@ -4,6 +4,8 @@ A native macOS menu bar app that shows system telemetry at a glance — CPU temp
 
 The app has no Dock icon, no main window, and no chrome. Click the menu bar numeric to see the popover with per-core temps, a 5-minute history chart, and color-threshold settings.
 
+![Specter menu bar and popover](Screenshot.png)
+
 ## Build
 
 Requires Xcode 15+ and macOS 13+.
