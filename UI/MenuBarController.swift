@@ -14,6 +14,12 @@ final class MenuBarController: NSObject {
     private let cpu: CPUTemperatureProvider
     private let settings: SettingsStore
 
+    /// Cache of the last `(text, bucket)` we actually wrote to the status
+    /// bar. Re-rendering the same value with a fresh `CATransition` and
+    /// `NSAttributedString` is pure waste — the common case for a stable
+    /// desktop is "value and color unchanged, 1 Hz tick fires anyway."
+    private var lastDisplayed: (text: String, bucket: Settings.ColorBucket)?
+
     init(
         service: TelemetryService,
         cpu: CPUTemperatureProvider,
@@ -52,7 +58,17 @@ final class MenuBarController: NSObject {
     /// Re-renders the status item title from the latest sample store data.
     /// Called by `TelemetryService.onUpdate` once per tick.
     func render() {
+        // Compute the candidate (text, bucket) first. If it matches what
+        // we last wrote, bail before allocating the CATransition, font,
+        // NSColor, and NSAttributedString — the steady-state case for
+        // a stable-temperature desktop.
+        let candidate = computeDisplay()
+
+        if let last = lastDisplayed, last == candidate { return }
+
         guard let button = statusItem.button else { return }
+        lastDisplayed = candidate
+
         // CATransaction batching: one dirty mark per tick, no implicit
         // animation on the title change.
         CATransaction.begin()
@@ -65,33 +81,32 @@ final class MenuBarController: NSObject {
         button.layer?.add(transition, forKey: "titleFade")
         defer { CATransaction.commit() }
 
-        guard cpu.isAvailable,
-              let store = service.store(for: cpu),
-              let primary = cpu.primaryLabel
-        else {
-            button.attributedTitle = NSAttributedString(string: "—°")
-            return
-        }
-
-        guard let celsius = store.latest()?.first(where: { $0.label == primary })?.value
-        else {
-            button.attributedTitle = NSAttributedString(string: "—°")
-            return
-        }
-
-        let unit = settings.settings.unit
-        let displayValue = unit.convertFromCelsius(celsius)
-        let bucket = settings.settings.bucket(forCelsius: celsius)
-        let color = Self.nsColor(for: bucket)
+        let color = Self.nsColor(for: candidate.bucket)
         let font = NSFont.monospacedDigitSystemFont(ofSize: 0, weight: .regular)
         let attributes: [NSAttributedString.Key: Any] = [
             .foregroundColor: color,
             .font: font,
         ]
         button.attributedTitle = NSAttributedString(
-            string: "\(Int(displayValue.rounded()))°",
+            string: candidate.text,
             attributes: attributes
         )
+    }
+
+    /// Pure computation of what the menu bar should show. No UI work.
+    private func computeDisplay() -> (text: String, bucket: Settings.ColorBucket) {
+        guard cpu.isAvailable,
+              let store = service.store(for: cpu),
+              let primary = cpu.primaryLabel,
+              let celsius = store.latest()?.first(where: { $0.label == primary })?.value
+        else {
+            return ("—°", .green)
+        }
+
+        let unit = settings.settings.unit
+        let displayValue = unit.convertFromCelsius(celsius)
+        let bucket = settings.settings.bucket(forCelsius: celsius)
+        return ("\(Int(displayValue.rounded()))°", bucket)
     }
 
     private static func nsColor(for bucket: Settings.ColorBucket) -> NSColor {

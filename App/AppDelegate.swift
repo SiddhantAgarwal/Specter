@@ -66,11 +66,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             popover?.toggle(relativeTo: button)
         }
 
-        // Each tick: redraw menu bar + nudge the popover.
-        service.onUpdate = { [weak menuBar, weak popover, weak viewModel] svc in
-            viewModel?.tick()
+        // Each tick: redraw the menu bar. The popover view model is only
+        // driven from `PopoverController.refresh()` (gated on visibility)
+        // and on show — running it every tick would rebuild 300-sample
+        // histories and trigger SwiftUI invalidation work that nothing
+        // reads when the popover is closed.
+        service.onUpdate = { [weak menuBar] _ in
             menuBar?.render()
-            _ = svc // suppress unused
         }
 
         self.menuBar = menuBar
