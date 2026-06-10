@@ -56,22 +56,12 @@ final class PopoverViewModel: ObservableObject {
 
     private func snapshot(for provider: TelemetryProvider) -> ProviderSnapshot {
         let store = service.store(for: provider)
-        let latest = store?.latest() ?? []
-        let history: [(String, [Double])] = {
-            guard let store else { return [] }
-            let window = store.recent(Self.historyWindow)
-            var labels = Set<String>()
-            for snap in window { for m in snap { labels.insert(m.label) } }
-            return labels.sorted().map { label in
-                (label, store.values(forLabel: label, last: Self.historyWindow))
-            }
-        }()
         return ProviderSnapshot(
             id: ObjectIdentifier(provider),
             providerName: provider.name,
             isAvailable: provider.isAvailable,
-            latest: latest,
-            history: history
+            latest: store?.latest() ?? [],
+            history: store?.snapshotHistory(maxSamples: Self.historyWindow) ?? []
         )
     }
 }
